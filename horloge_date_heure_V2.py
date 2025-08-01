@@ -3,8 +3,8 @@ from machine import Pin, I2C
 from ssd1306 import SSD1306_I2C
 
 # Paramètres WiFi
-ssid = "Virus_ZN_03"
-password = "BonjourLESzamis951#&!"
+ssid = "monSSID"
+password = "monPWD"
 
 # Initialisation WiFi
 wlan = network.WLAN(network.STA_IF)
@@ -120,3 +120,4 @@ def gestion_saint_du_jour():
 # Démarrage des tâches
 _thread.start_new_thread(gestion_saint_du_jour, ())
 affichage()
+
