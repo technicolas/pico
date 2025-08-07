@@ -2,26 +2,29 @@ import network, ntptime, math, urequests, _thread, time, utime
 from machine import Pin, I2C
 from ssd1306 import SSD1306_I2C
 
-# Réseau
+# Config' Partie WIFI
 ssid = "monSSID"                           # !!! Ne pas oublier de modifier ce paramètre !!!
 password = "monPWD"                        # !!! Ne pas oublier de modifier ce paramètre !!!
-WIDTH, HEIGHT = 128, 64
-TAILLE_HORLOGE = 16
 
-i2c = I2C(0, scl=Pin(1), sda=Pin(0), freq=200000)
+# Config' Partie Ecran
+WIDTH, HEIGHT = 128, 64                    # définir ici la taille de l'écran OLED (prg optimisé pour un 128x64
+TAILLE_HORLOGE = 16                        # définir ici la taille de l'horloge analogique, dans mon cas, avec un écran 128x64, le rayon max est de 16 pixels
 oled = SSD1306_I2C(WIDTH, HEIGHT, i2c)
+i2c = I2C(0, scl=Pin(1), sda=Pin(0), freq=200000)
+
 donnees = {"saint": "Chargement...", "temperature": "---C"}
 
+# Connexion au réseau WIFI
 def initialiser_reseau():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(ssid, password)
     while not wlan.isconnected():
         time.sleep(1)
-    ntptime.host = '0.europe.pool.ntp.org'
+    ntptime.host = '0.europe.pool.ntp.org'    # Serveur NTP, serveur de temps où le PICO va récupérer l'heure exacte ;-) Ce serveur peut être modifié (Voir V1)
     ntptime.settime()
 
-# Heure
+# Fonction permettant de définir le décalage horaire - été/hiver (merci Copilot pour la fonction, je n'aurais jamais trouvé seul!!)
 def is_summer_time(t):
     y = t[0]
     mls = max(d for d in range(25, 32) if time.localtime(time.mktime((y,3,d,2,0,0,0,0)))[6] == 6)
@@ -33,6 +36,7 @@ def get_datetime():
     h = (t[3] + (2 if is_summer_time(t) else 1)) % 24
     return "{:02}.{:02}.{}".format(t[2], t[1], t[0]), "{:02}:{:02}:{:02}".format(h, t[4], t[5]), "+2" if is_summer_time(t) else "+1", h, t[4], t[5]
 
+# Fonction permettant de supprimer les caractères accentués présents dans la récupération du Saint du jour
 def supprimer_accents(texte):
     remplacements = {
         'à': 'a', 'â': 'a', 'ä': 'a',
@@ -50,7 +54,7 @@ def supprimer_accents(texte):
     }
     return ''.join(remplacements.get(c, c) for c in texte)
 
-# Données externes
+# Fonction permettant de récupérer et présenter le Saint du jour
 def get_saint_of_day():
     try:
         r = urequests.get("https://www.ephemeride-jour.fr/ephemeride/saints-jour.php")
@@ -71,9 +75,10 @@ def get_saint_of_day():
     except:
         return "Inconnu"
 
+# Fonction permettant de récupérer la température à l'endroit voulu (via wttr.in)
 def get_temperature():
     try:
-        r = urequests.get("http://wttr.in/Acoz?format=%t")
+        r = urequests.get("http://wttr.in/Brussels?format=%t")                        # Modifier le lieu ici
         temp = r.text.strip()
         r.close()
         temp = temp.replace("°C", " deg").replace("+", "").strip()
@@ -104,7 +109,7 @@ class GestionInfos:
 
             time.sleep(5)
 
-# Horloge
+# Fonction permettant de présenter l'horloge analogique
 class HorlogeAnalogique:
     def __init__(self, oled, cx, cy, rayon):
         self.oled = oled
@@ -145,7 +150,7 @@ class HorlogeAnalogique:
                 if 0 <= sx+dx < self.oled.width and 0 <= sy+dy < self.oled.height:
                     self.oled.pixel(sx+dx, sy+dy, 1)
 
-# Affichage
+# Fonction permettant de gérer l'afficheur OLED
 class AfficheurOLED:
     def __init__(self, oled, horloge, donnees):
         self.oled = oled
@@ -171,7 +176,8 @@ class AfficheurOLED:
                 utime.sleep_ms(attente)
             prochaine_frame = utime.ticks_add(prochaine_frame, intervalle_ms)
 
-# Lancement
+# Boucle principale (main)
+
 # print("Connexion réseau…")
 initialiser_reseau()
 # print("Réseau OK")
@@ -180,10 +186,13 @@ horloge = HorlogeAnalogique(oled, 112, 16, TAILLE_HORLOGE)
 afficheur = AfficheurOLED(oled, horloge, donnees)
 infos = GestionInfos(donnees)
 
+# Lancement d'actions sur le second coeur du Pico
+
 # print("Démarrage du thread")
 _thread.start_new_thread(infos.actualiser, ())
 # print("Thread lancé")
 
 # print("Affichage lancé")
 afficheur.afficher()
+
 
