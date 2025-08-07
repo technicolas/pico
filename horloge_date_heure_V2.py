@@ -3,8 +3,8 @@ from machine import Pin, I2C
 from ssd1306 import SSD1306_I2C
 
 # Réseau
-ssid = "monSSID"
-password = "monPWD"
+ssid = "monSSID"                           # !!! Ne pas oublier de modifier ce paramètre !!!
+password = "monPWD"                        # !!! Ne pas oublier de modifier ce paramètre !!!
 WIDTH, HEIGHT = 128, 64
 TAILLE_HORLOGE = 16
 
@@ -186,3 +186,4 @@ _thread.start_new_thread(infos.actualiser, ())
 
 # print("Affichage lancé")
 afficheur.afficher()
+
